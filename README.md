@@ -2,6 +2,7 @@
 ## Learn Basic and Intermediate SQL
 - running MySQL 9.1 Innovation Edition
 - using python script to setup, connect and alter database. (SQL statements)
+- project replicates a simple "google drive"
 
 - ability to log, upload, delete, update and view database information (CRUD functionality)
 - emulate uploading files to a specified folder (cloud), handle files in folder and emulate downloades
