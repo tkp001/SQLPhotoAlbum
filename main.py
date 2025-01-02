@@ -343,6 +343,11 @@ while exit == 0:
                     db.commit()
                     print("database info deleted")
 
+                    auth = 0
+                    user_details = None
+                    exit = 1
+                    break
+
                     #delete all folder data
                     try:
                         shutil.rmtree(os.path.join(os.path.expanduser("~"), "Downloads", "uploaded_photos", f"{user_id}"))
