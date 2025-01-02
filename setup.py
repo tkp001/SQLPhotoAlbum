@@ -2,7 +2,7 @@ import mysql.connector
 from mysql.connector import errorcode
 from database import cursor
 
-DB_NAME = 'photo_album'
+DB_NAME = 'photo_album_2'
 
 # define tables
 TABLES = {}
@@ -17,12 +17,23 @@ TABLES['logs'] = (
     ") ENGINE=InnoDB"
 )
 
-# users foreign key later (login/signup)
+TABLES['users'] = (
+    "CREATE TABLE `users` ("
+    " `user_id` INT NOT NULL AUTO_INCREMENT,"
+    " `username` VARCHAR(250) NOT NULL UNIQUE,"
+    " `email` VARCHAR(250) NOT NULL UNIQUE,"
+    " `password` VARCHAR(250) NOT NULL,"
+    " `date_created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+    " PRIMARY KEY (`user_id`)"
+    ") ENGINE=InnoDB"
+)
+
+# users foreign key (deletes photos attached to id when user deleted, NO ARCHIVE)
 TABLES['photos'] = (
     "CREATE TABLE `photos` ("
     " `photo_id` INT NOT NULL AUTO_INCREMENT,"
+    " `user_id` INT NOT NULL,"
     " `file_path` TEXT NOT NULL,"
-    " `user` VARCHAR(250) NOT NULL,"
     " `name` VARCHAR(250),"
     " `title` VARCHAR(250),"
     " `description` TEXT,"
@@ -31,7 +42,8 @@ TABLES['photos'] = (
     " `time_taken` TIME,"
     " `upload_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,"
     " `hash` VARCHAR(255),"
-    " PRIMARY KEY (`photo_id`)"
+    " PRIMARY KEY (`photo_id`),"
+    " FOREIGN KEY (`user_id`) REFERENCES users (`user_id`) ON DELETE CASCADE"
     ") ENGINE=InnoDB"
 )
 

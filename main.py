@@ -1,10 +1,7 @@
 from database import cursor, db
-import random
 import os
 import shutil
 import hashlib
-
-## hash is currrently random number
 
 # log methods
 def add_log(user, text):
@@ -43,9 +40,9 @@ def delete_log(id):
 
 
 # photo methods
-def get_photos():
-    sql = "SELECT * FROM photos ORDER BY upload_date DESC"
-    cursor.execute(sql)
+def get_photos(user_id):
+    sql = "SELECT * FROM photos WHERE user_id=%s ORDER BY upload_date DESC"
+    cursor.execute(sql, (user_id,))
     result = cursor.fetchall()
 
     for row in result:
@@ -54,54 +51,54 @@ def get_photos():
     if result == []:
         print("No photos.")
 
-def get_photo(id):
-    sql = "SELECT * FROM photos WHERE photo_id=%s"
-    cursor.execute(sql, (id,))
+def get_photo(id, user_id):
+    sql = "SELECT * FROM photos WHERE photo_id=%s AND user_id=%s"
+    cursor.execute(sql, (id, user_id))
     result = cursor.fetchone()
     return result
 
-def get_photo_byname(name):
-    sql = "SELECT * FROM photos WHERE name=%s"
-    cursor.execute(sql, (name,))
+def get_photo_byname(name, user_id):
+    sql = "SELECT * FROM photos WHERE name=%s AND user_id=%s"
+    cursor.execute(sql, (name, user_id))
     result = cursor.fetchone()
     return result
 
-def delete_photo(id):
-    sql = "DELETE FROM photos WHERE photo_id=%s"
-    cursor.execute(sql, (id,))
+def delete_photo(id, user_id):
+    sql = "DELETE FROM photos WHERE photo_id=%s AND user_id=%s"
+    cursor.execute(sql, (id, user_id))
     db.commit()
     print("photo deleted from database")
+    add_log("system", f"photo photo-id:{id}, user-id:{user_id} deleted from database")
 
-    add_log(f"system", "photo id:{id} deleted")
 
 # advanced commands
-def insert_photo(file_path, user, name, title, description, category, date_taken, time_taken, hash):
+def insert_photo(user_id, file_path, name, title, description, category, date_taken, time_taken, hash):
     sql = """
-    INSERT INTO photos(file_path, user, name, title, description, category, date_taken, time_taken, hash)
+    INSERT INTO photos(user_id, file_path, name, title, description, category, date_taken, time_taken, hash)
      VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-    data = (file_path, user, name, title, description, category, date_taken, time_taken, hash)
+    data = (user_id, file_path, name, title, description, category, date_taken, time_taken, hash)
 
     cursor.execute(sql, data)
     db.commit()
     print("photo inserted into database")
-    log_id = cursor.lastrowid
-    add_log("system", f"photo {name} inserted as id:{log_id}")
+    
+    photo_id = cursor.lastrowid
+    add_log("system", f"photo {name} inserted as photo-id:{photo_id}, user-id:{user_id}")
+    return photo_id
 
-
-def update_photo(photo_id, file_path, user, name, title, description, category, date_taken, time_taken, hash):
+def update_photo(photo_id, user_id, title, description, category, date_taken, time_taken):
     sql = """
     UPDATE photos
-    SET file_path=%s, user=%s, name=%s, title=%s, description=%s, category=%s, date_taken=%s, time_taken=%s, hash=%s
-    WHERE photo_id=%s
+    SET title=%s, description=%s, category=%s, date_taken=%s, time_taken=%s
+    WHERE photo_id=%s AND user_id=%s
     """
-    data = (file_path, user, name, title, description, category, date_taken, time_taken, hash, photo_id)
+    data = (title, description, category, date_taken, time_taken, photo_id, user_id)
     
     cursor.execute(sql, data)
     db.commit()
-    print(f"photo id:{photo_id} updated")
 
-    add_log("system", f"photo info id:{photo_id} updated")
+    add_log("system", f"photo info photo-id:{photo_id}, user-id:{user_id} updated")
 
 # internet methods
 def rename_file(current_path, new_name):
@@ -134,13 +131,13 @@ def get_image_hash(file_path):
         return None
 
 # terminal options
-def add_form():
+def add_form(user_id):
     file_path = input("Enter the file path for the photo (required): ")
     if not file_path or not os.path.exists(file_path):
         print("valid file path is required.")
         return
 
-    downloads_folder = os.path.join(os.path.expanduser("~"), "Downloads", "uploaded_photos")
+    downloads_folder = os.path.join(os.path.expanduser("~"), "Downloads", "uploaded_photos", f"{user_id}")
     if not os.path.exists(downloads_folder):
         os.makedirs(downloads_folder)
     file_name = os.path.basename(file_path)
@@ -151,12 +148,6 @@ def add_form():
     #     print("duplicate name detected, please have unique file names")
     #     return
 
-
-    user = input("Enter user (required): ")
-    if not user:
-        print("user is required.")
-        return
-    
     # name = input("Enter photo name: ")
     title = input("Enter photo title: ")
     description = input("Enter photo description: ")
@@ -176,30 +167,35 @@ def add_form():
     hash = get_image_hash(file_path)
 
     #insert photo, rename to primary key, provide database new file path
-    insert_photo(new_file_path, user, name, title, description, category, date_taken, time_taken, hash)
     
-    photo_id = cursor.lastrowid
+    photo_id = insert_photo(user_id, new_file_path, name, title, description, category, date_taken, time_taken, hash)
+
     shutil.copy(file_path, new_file_path)
+    
     print("photo added to disk")
 
     a = get_file_extension(new_file_path)
     formatted_name = f"{photo_id}{a}"
     rename_file(new_file_path, formatted_name)
     print("photo formatted")
-
     new_formatted_path = os.path.join(downloads_folder, formatted_name)
+
+    # print(photo_id)
+    # print(formatted_name)
+    # print(new_file_path)
+    # print(new_formatted_path)
     sql = "UPDATE photos SET file_path=%s WHERE photo_id=%s"
     data = (new_formatted_path , photo_id)
     cursor.execute(sql, data)
     db.commit()
 
-def delete_form():
-    get_photos()
+def delete_form(user_id):
+    get_photos(user_id)
     id = input("Enter photo id: ")
     
-    if get_photo(id) != None:
-        data = get_photo(id)
-        file_path = data[1]
+    if get_photo(id, user_id) != None:
+        data = get_photo(id, user_id)
+        file_path = data[2]
     else:
         print("id does not exist")
         return
@@ -210,14 +206,14 @@ def delete_form():
     else:
         print(f"The file {file_path} does not exist on the disk.")
 
-    delete_photo(id)
+    delete_photo(id, user_id)
 
-def update_form():
-    get_photos()
+def update_form(user_id):
+    get_photos(user_id)
     id = input("Enter photo id: ")
 
-    if get_photo(id) != None:
-        data = get_photo(id)
+    if get_photo(id, user_id) != None:
+        data = get_photo(id, user_id)
     else:
         print("id does not exist")
         return
@@ -228,55 +224,132 @@ def update_form():
     description = input(f"Enter new photo description (Current: {data[5]}): ")
     category = input(f"Enter new photo category (Current: {data[6]}): ")
 
-    update_photo(data[0], data[1], data[2], data[3], title, description, category, data[7], data[8], data[10])
+    
+    update_photo(data[0], data[1], title, description, category, data[7], data[8])
     print("photo updated")
 
-    get_photos()
+    get_photos(user_id)
 
-def download_form():
+def download_form(user_id):
     # ONLY SIMULATES A DONWLOAD
-    get_photos()
+    get_photos(user_id)
     id = input("Enter photo id: ")
 
-    if get_photo(id) != None:
-        data = get_photo(id)
+    if get_photo(id, user_id) != None:
+        data = get_photo(id, user_id)
     else:
         print("id does not exist")
         return
 
     downloads_folder = os.path.join(os.path.expanduser("~"), "Downloads")
-    if not os.path.isfile(data[1]):
+    if not os.path.isfile(data[2]):
             print("file not found on disk")
             return
 
-    file_name = os.path.basename(data[1])
+    file_name = os.path.basename(data[2])
     destination_path = os.path.join(downloads_folder, f"{data[10]}{file_name}")
-    shutil.copy(data[1], destination_path)
+    shutil.copy(data[2], destination_path)
     print("photo downloaded")
 
-# loop
-while True:
-    print("1. add photo")
-    print("2. delete photo")
-    print("3. update photo")
-    print("4. view photos")
-    print("5. download photo")
-    print("6. QUIT")
-    ipt = int(input("Enter option: "))
+    add_log("system", f"photo {data[2]}, photo-id:{data[0]}, user-id:{data[1]} downloaded from disk")
 
-    match ipt:
-        case 1:
-            add_form()
-        case 2:
-            delete_form()
-        case 3:
-            update_form()
-        case 4:
-            get_photos()
-        case 5:
-            download_form()
-        case 6:
-            print("Exited code")
-            break
-        case _:
-            print("Invalid Option!!")
+def checkauth(email, password):
+    sql = "SELECT * FROM users WHERE email=%s"
+    cursor.execute(sql, (email,))
+    result = cursor.fetchone()
+    # print(result)
+    # return result
+
+    if result == None:
+        print("Invalid email")
+        return
+    else:
+        sql = "SELECT * FROM users WHERE email=%s AND password=%s"
+        cursor.execute(sql, (email, password))
+        result = cursor.fetchone()
+
+        if result == None:
+            print("Invalid password")
+            return
+        else:
+            return result
+
+exit = 0
+auth = 0
+user_details = None
+
+print("Photo Album Project in SQL")
+
+while exit == 0:
+    create = input("Create new account? [Y/N]: ")
+    if create.upper() == "Y":
+        username = input("Enter account username: ")
+        email = input("Enter account email: ")
+        password = input("Enter account password: ") 
+            
+        sql = "INSERT INTO users(username,email,password) VALUES(%s, %s, %s)"
+        cursor.execute(sql, (username,email,password))
+        db.commit()
+        print("Account created, use credientials to login.")
+
+    while user_details == None:
+
+
+        email = input("Enter your email: ")
+        password = input("Enter your password: ")
+
+        user_details = checkauth(email,password)
+
+        if user_details != None:
+            auth = 1
+            print(f"Welcome {user_details[1]}")
+    
+    while auth == 1:
+        user_id = user_details[0]
+        username = user_details[1]
+        email = user_details[2]
+        password = user_details[3]
+
+        while True:
+            print("1. add photo")
+            print("2. delete photo")
+            print("3. update photo")
+            print("4. view photos")
+            print("5. download photo")
+            print("6. LOGOUT")
+            print("7. DELETE ACCOUNT")
+            ipt = int(input("Enter option: "))
+
+            match ipt:
+                case 1:
+                    add_form(user_id)
+                case 2:
+                    delete_form(user_id)
+                case 3:
+                    update_form(user_id)
+                case 4:
+                    get_photos(user_id)
+                case 5:
+                    download_form(user_id)
+                case 6:
+                    # print("Exited code")
+                    auth = 0
+                    user_details = None
+                    exit = 1
+                    break
+                case 7:
+                    sql = f"DELETE FROM users WHERE user_id={user_id}"
+                    cursor.execute(sql)
+                    db.commit()
+                    print("database info deleted")
+
+                    #delete all folder data
+                    try:
+                        shutil.rmtree(os.path.join(os.path.expanduser("~"), "Downloads", "uploaded_photos", f"{user_id}"))
+                        print("user disk data deleted")
+                    except Exception as e:
+                        print(f"error: {e}")
+                case _:
+                    print("Invalid Option!!")
+
+print("End of code")
