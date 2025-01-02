@@ -1,6 +1,6 @@
 # SQLPhotoAlbum
 ## Learn Basic and Intermediate SQL
-- running MySQL 9.1 Innovation Edition
+- running a MySQL 9.1 Innovation Edition server instance on my computer
 - using python script to setup, connect and alter database. (SQL statements)
 - project replicates a simple "google drive"
 
@@ -15,3 +15,17 @@
 
 ## Software
 - uses mysql, shutil and hashlib
+
+## Images
+
+![uploads](/publicmedia/upss.png)
+
+"Uploads Folder"
+
+![downloads](/publicmedia/dss.png)
+
+"Image Examples"
+
+![downloads](/publicmedia/mysqlworkbench.png)
+
+"MySQL Workbench Community Edition"
