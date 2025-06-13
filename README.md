@@ -15,6 +15,3 @@
 
 ## Software
 - uses mysql, shutil and hashlib
-
-## Images
-
